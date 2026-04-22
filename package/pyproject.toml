@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ancIBD"
-version = "0.8"
+version = "0.9" 
 requires-python = ">= 3.6"
 dependencies = ['numpy', 'pandas', 'scipy', 'h5py', 'psutil', 'pysam', 'scikit-allel']
 description = "Identify identity-by-descent (IBD) segments between pairs of individuals in human ancient DNA data."

@@ -321,7 +321,7 @@ class IBD2Postprocessing(PostProcessing):
                             l_ibd2, l_map_ibd2, starts_bp_ibd2, ends_bp_ibd2, self.ch, self.min_cm2_init,
                             iid1, iid2, segment_type='IBD2')
         if self.output:
-            print(f"Called n={len(df2)} IBD2 Blocks > {self.min_cm2} cM")
+            print(f"Called n={len(df2)} IBD2 Blocks > {self.min_cm2_init} cM")
             l = np.max(df2["lengthM"])
             print(f"Longest Block: {l *100:.2f} cM")
         # Merge Blocks in Postprocessing Step

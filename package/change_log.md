@@ -1,6 +1,10 @@
 ## VERSION NUMBER, DATE, AUTHOR
 List of updates to ancIBD.
 
+## 0.9, Harald Ringbauer [Not released yet - updates into here]
+- Fixed a small bug for calling IBD2, where if the output was activated, the non-existing variable self.min_cm2 was printed. This caused an error message.
+- Fixed a small bug for `run_plot_pair_IBD2()` where the exact parameter wasn't passed on - triggering bugs when an inexact match found multiple matches.
+
 ## 0.8, January 9th 2026, Harald Ringbauer
 - Updated installation to pyproj.toml from pure setup.py
 - Fixed the unexpected behavior of some plotting functions (e.g., IBD histogram per pair of iids where a substring IID hit was enough.

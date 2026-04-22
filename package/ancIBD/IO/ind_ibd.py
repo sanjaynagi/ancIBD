@@ -189,15 +189,10 @@ def create_ind_ibd_df_IBD2(ibd_data = "/n/groups/reich/hringbauer/git/yamnaya/ou
 
 
 
-
-
-
-
-
 def ind_all_ibd_df(path_ibd = "/n/groups/reich/hringbauer/git/yamnaya/output/ibd/v43/ch_all.tsv",
                    col_lengthM="lengthM", snp_cm = 220, min_cm = 5,
                    output=True, sort=True, decimals=2, col_new="ibd", savepath=""):
-    """Create dataframe with all IBD for each indivdiual pair
+    """Create a dataframe with all IBD for each individual pair
     Return this novel dataframe in hapROH format [IBD in cM]
     path_ibd: What ibd file to load.
     snp_cm: Minimum Density of SNP per cM of IBD block.

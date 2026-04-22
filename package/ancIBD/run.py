@@ -323,7 +323,7 @@ def run_plot_pair_IBD2(path_h5="/n/groups/reich/hringbauer/git/hapBLOCK/data/hdf
         ### Load the data from the HDF5
         o_homos, m_homos = get_opp_homos_f(iid1=iids[0], iid2=iids[1], 
                                      f_path=path_h5, ch=ch, exact=exact)
-        diff_gt, m_diffgt = get_diff_gt_f(path_h5, iids[0], iids[1], ch, output=False)
+        diff_gt, m_diffgt = get_diff_gt_f(path_h5, iids[0], iids[1], ch, output=False, exact=exact)
         
         plot_posterior_IBD2(post=post, morgan=r_vec, df_ibd=df_ibd, 
                        het=o_homos, het_m=m_homos, idengt=diff_gt, idengt_m=m_diffgt, state=state,
