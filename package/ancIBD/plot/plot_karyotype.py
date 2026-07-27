@@ -14,6 +14,7 @@ from matplotlib import gridspec
 import matplotlib.patheffects as pe
 
 #sys.path.insert(0,"/n/groups/reich/hringbauer/git/hapBLOCK/python3/")  # hack to get development package first in path
+from ancIBD.genetic_map import chrom_length_morgan
 from ancIBD.ibd_stats.funcs import give_sub_df
 
 ###########################################################################
@@ -21,17 +22,12 @@ from ancIBD.ibd_stats.funcs import give_sub_df
 ### The Functions for the Plot
 
 def chrom_length(ch, ch_lengths=[], output=False):
-    """Get and return length of Chromosome ch
+    """Get and return length of Chromosome ch [in Morgan]
     If ch_lengths not given, use default (from Eigenstrat map).
     Atm only do autosomes!"""
     if len(ch_lengths)==0:
-        ch_lengths = [2.86273, 2.688325, 2.232573, 2.145423,
-                      2.040858, 1.920325, 1.871526, 1.680022,
-                      1.66301, 1.809153, 1.582171, 1.746799,
-                      1.257046, 1.202023, 1.41346, 1.340263,
-                      1.284738, 1.177099, 1.077316, 1.082134,
-                      0.627865, 0.740762]
-        return ch_lengths[ch-1]
+        return chrom_length_morgan(ch)
+    return ch_lengths[ch-1]
 
 def load_bad_areas(path="./Data/1000Genomes/Markers/1240k/snp_density.csv", min_snps=50):
     """Load areas of low SNP density, and return list of Dataframes 

@@ -10,6 +10,13 @@ import numpy as np
 import pandas as pd
 import os as os
 
+### Default parameters for calling IBD2 segments. Single source of truth:
+### IBD2Postprocessing, the hapBLOCK wrappers in run.py and the ancIBD CLI all
+### take their defaults from here, so they cannot drift apart.
+CUTOFF_POST2 = 0.8          # Cutoff Probability for the IBD2 state
+MIN_CM2_INIT = 0.25         # Min. length of an IBD2 segment before merging [in cM]
+MIN_CM2_AFTER_MERGE = 4.0   # Min. length of an IBD2 segment after merging [in cM]
+
 class PostProcessing(object):
     """Class that can do PostProcessing of HAPSBURG output.
     (for one individual). Sometimes post-processing is done outside that,
@@ -244,10 +251,10 @@ class NoPostProcessing(PostProcessing):
         pass
 
 class IBD2Postprocessing(PostProcessing):
-    min_cm2_init = 1.0
-    min_cm2_after_merge = 2.0
+    min_cm2_init = MIN_CM2_INIT
+    min_cm2_after_merge = MIN_CM2_AFTER_MERGE
     cutoff_post1 = 0.99    # Cutoff Probability for IBD1 state
-    cutoff_post2 = 0.975    # Cutoff Probability for IBD2 state
+    cutoff_post2 = CUTOFF_POST2    # Cutoff Probability for IBD2 state
 
     def create_df(self, starts, ends, starts_map, ends_map, 
               l, l_map, starts_bp, ends_bp, ch, min_cm, iid1, iid2, segment_type="IBD1"):

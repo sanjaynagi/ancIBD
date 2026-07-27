@@ -366,7 +366,7 @@ class LoadDict(LoadHDF5Multi):
             p = self.get_p(hts)  # Calculate Mean allele frequency from sample subset                
         
         ### Filter to Valid data
-        if filtering:
+        if self.filtering:
             hts, p, m, bp = self.filter_valid_data(hts, p, m, bp)
         
         self.check_valid_data(hts, p, m)
