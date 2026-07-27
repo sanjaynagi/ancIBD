@@ -14,7 +14,9 @@ import sys as sys
 import os as os
 import warnings
 
+from ancIBD import __version__
 from ancIBD.main import HMM_Full  # To run the main plotting.
+from ancIBD.postprocessing import CUTOFF_POST2, MIN_CM2_INIT, MIN_CM2_AFTER_MERGE
 from ancIBD.plot.plot_posterior import plot_posterior, plot_posterior_IBD2 # to plot the posterior.
 from ancIBD.IO.h5_load import get_opp_homos_f, get_opp_homos_X, get_diff_gt_f
 
@@ -24,7 +26,8 @@ def hapBLOCK_chrom(folder_in="./data/hdf5/1240k_v43/ch", iids = ["", ""],
                    t_model="standard", p_model='hapROH', p_col="variants/AF_ALL", 
                    ibd_in=1, ibd_out=10, ibd_jump=400, ibd_jump2=0.5, min_cm=2, min_error=1e-3,
                    cutoff_post=0.99, max_gap=0.0075,
-                   IBD2=False, cutoff_post2=0.8, min_cm2_init=0.25, min_cm2_after_merge=4.0):
+                   IBD2=False, cutoff_post2=CUTOFF_POST2, min_cm2_init=MIN_CM2_INIT,
+                   min_cm2_after_merge=MIN_CM2_AFTER_MERGE):
     """Run IBD for ONE pair of Individuals.
     folder_in: hdf5 path up to chromosome.
     iids: List of IIDs to compare [length 2]
@@ -92,7 +95,8 @@ def hapBLOCK_chroms(folder_in="./data/hdf5/1240k_v43/ch", iids = [], run_iids=[]
                    t_model="standard", p_model="hapROH", p_col="variants/AF_ALL", 
                    ibd_in=1, ibd_out=10, ibd_jump=400, ibd_jump2=0.5, min_cm=2,
                    cutoff_post=0.99, max_gap=0.0075, 
-                   IBD2=False, cutoff_post2=0.975, min_cm2_init=1.0, min_cm2_after_merge=2.0,
+                   IBD2=False, cutoff_post2=CUTOFF_POST2, min_cm2_init=MIN_CM2_INIT,
+                   min_cm2_after_merge=MIN_CM2_AFTER_MERGE,
                    mask=""):
     """Run IBD for list of Individuals, and saves their IBD csv into a single 
     output folder.
@@ -204,8 +208,8 @@ def hapBLOCK_times(folder_in="./data/hdf5/1240k_v43/ch", iids = [], run_iids=[],
     
     ### Load all data
     h.l_obj.set_params(filtering=False) # To not batch filter data
-    htsl, p, r_vec, samples =  h.l_obj.load_all_data()
-    
+    htsl, p, r_vec, bp, samples =  h.l_obj.load_all_data()
+
     t2 = time()
     
     ### Load transition matrix
@@ -227,7 +231,7 @@ def hapBLOCK_times(folder_in="./data/hdf5/1240k_v43/ch", iids = [], run_iids=[],
         post =  h.fwd_bwd(e_mat, t_mat[idx,:,:], in_val =  h.in_val, 
                             full=False, output= h.output)
 
-        df_ibd, _, _ = h.p_obj.call_roh(r_vec[idx], post, iid1, iid2)
+        df_ibd, _, _ = h.p_obj.call_roh(r_vec[idx], bp[idx], post, iid1, iid2)
         df_ibds.append(df_ibd)
     
     df_ibds = pd.concat(df_ibds)
@@ -274,7 +278,7 @@ def run_plot_pair(path_h5="/n/groups/reich/hringbauer/git/hapBLOCK/data/hdf5/124
         
     if plot:
         if len(title)==0:
-            title = f"ancIBD v0.5, {iids[0]} - {iids[1]}, Chr. {ch}"
+            title = f"ancIBD v{__version__}, {iids[0]} - {iids[1]}, Chr. {ch}"
             
         ### Load the data from the HDF5
         o_homos, m = get_opp_homos_f(iid1=iids[0], iid2=iids[1], 
@@ -293,7 +297,8 @@ def run_plot_pair_IBD2(path_h5="/n/groups/reich/hringbauer/git/hapBLOCK/data/hdf
                   plot=False, path_fig="", output=False, exact=True,
                   ibd_in=1, ibd_out=10, ibd_jump=400, min_cm1=8, 
                   cutoff_post=0.99, max_gap=0.0075, p_col="variants/AF_ALL",
-                  cutoff_post2=0.8, min_cm2_init=0.25, min_cm2_after_merge=4.0, 
+                  cutoff_post2=CUTOFF_POST2, min_cm2_init=MIN_CM2_INIT,
+                  min_cm2_after_merge=MIN_CM2_AFTER_MERGE,
                   title="", state=0, return_post=False):
     """Run and plot IBD for pair of Individuals.
     folder_out: Where to save the hapBLOCK output to
@@ -514,7 +519,7 @@ def run_plot_pair_X(folder_in="", iids = ["", ""], ploidy=(2,2),
         
     if plot:
         if len(title)==0:
-            title = f"ancIBD v0.5, {iids[0]} - {iids[1]}, Chr. X"
+            title = f"ancIBD v{__version__}, {iids[0]} - {iids[1]}, Chr. X"
         o_homos, m = get_opp_homos_X(folder_in + "X.h5", iid1=iids[0], iid2=iids[1], ploidy=ploidy, cutoff=gp_filter, output=output, exact=exact)
         print(f"Plotting {len(r_vec)} markers")
         print(f'# of oppo homos: {np.sum(o_homos)}')

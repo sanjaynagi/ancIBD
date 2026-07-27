@@ -71,7 +71,7 @@ class HaplotypeSharingEmissions(Emissions):
         p: [l] array of derived genotype probability.
         shared: tuple of length 2 giving the indices of the shared haplotypes"""
         not_shared = [i for i in range(0,4) if i not in shared]
-        assert(len(not_shared)==2 & len(shared)==2)
+        assert(len(not_shared)==2 and len(shared)==2)
         p_hw1 = self.hw_prob_haplo_pp(hts_p[not_shared[0],:], p=p)
         p_hw2 = self.hw_prob_haplo_pp(hts_p[not_shared[1],:], p=p)
         p_shared = self.hw_prob_haplo_share_pp(hts_p[shared[0],:],hts_p[shared[1],:], p=p)
@@ -118,7 +118,7 @@ class HaplotypeSharingEmissions2(Emissions):
         shared: tuple of length 2 giving the indices of the shared haplotypes"""
         ### Sanity Check
         not_shared = [i for i in range(0,4) if i not in shared]
-        assert(len(not_shared)==2 & len(shared)==2) # Sanity Check
+        assert(len(not_shared)==2 and len(shared)==2) # Sanity Check
         
         # Actual Calculation
         p_shared = self.hw_prob_haplo_share_pp(hts_p[shared[0],:],hts_p[shared[1],:], p=p)

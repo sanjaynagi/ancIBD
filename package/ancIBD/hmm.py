@@ -64,16 +64,6 @@ def fwd_bkwd_p(e_prob, t_mat,  in_val = 1e-4,
 
 ####################################################
 ####################################################
-### Additional Helper Functions
-
-def print_memory_usage():
-    """Print the current Memory Usage in mB"""
-    process = psutil.Process(os.getpid())
-    mb_usage = process.memory_info().rss / 1e6
-    print(f"Memory Usage: {mb_usage} mB")
-    
-    
-####################################################
 ### Factory method to load the right function
 
 def load_fwd_bwd_func(h_model="FiveState"):

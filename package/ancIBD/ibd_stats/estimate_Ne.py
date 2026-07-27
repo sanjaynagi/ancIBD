@@ -6,6 +6,7 @@ Function to estimate Ne from IBD results
 import numpy as np
 import pandas as pd
 from TTNe.analytic import singlePop_2tp_given_Ne_negLoglik
+from ancIBD.genetic_map import CH_LENGTHS_CM
 from ancIBD.ibd_stats.ibd_sites_stats import get_ibd_stats_unrelated
 
 def fit_Ne_ibd(df, n_pairs, bins = np.arange(8, 30, 0.25), Ne_list = np.arange(100, 20000, 100)):
@@ -18,11 +19,7 @@ def fit_Ne_ibd(df, n_pairs, bins = np.arange(8, 30, 0.25), Ne_list = np.arange(1
     binMidpoint = (bins[1:] + bins[:-1])/2
     histo, _ = np.histogram(100*df['lengthM'], bins=bins)
     
-    ### Hard Coded Human Genome Parameters
-    ch_len_dict = {1:286.279, 2:268.840, 3:223.361, 4:214.688, 5:204.089, 6:192.040, 7:187.221, 8:168.003, 9:166.359, \
-        10:181.144, 11:158.219, 12:174.679, 13:125.706, 14:120.203, 15:141.860, 16:134.038, 17:128.491, 18:117.709, \
-        19:107.734, 20:108.267, 21:62.786, 22:74.110}
-    G = np.array([val for k, val in ch_len_dict.items()]) # Total Genom length
+    G = np.array([val for k, val in CH_LENGTHS_CM.items()]) # Total Genom length
 
     mat = np.zeros(len(Ne_list))
 

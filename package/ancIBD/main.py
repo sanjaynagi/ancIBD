@@ -87,7 +87,7 @@ class HMM_Full(object):
         """Run Forward Backward algorithm.
         Legacy: Timed version."""
         t = time()
-        htsl, p, r_vec, _ =  self.l_obj.load_all_data()
+        htsl, p, r_vec, bp, samples =  self.l_obj.load_all_data()
         e = time()
         print(f"Runtime Loading: {(e-t)} s")
         
@@ -104,7 +104,7 @@ class HMM_Full(object):
         if full:
             post, fwd, bwd, tot_ll = self.fwd_bwd(e_mat, t_mat, in_val = self.in_val, 
                                                   full=full, output=self.output)
-            self.p_obj.call_roh(r_vec, post)
+            self.p_obj.call_roh(r_vec, bp, post)
             return post, r_vec, fwd, bwd, tot_ll
         else:
             t = time()
@@ -113,7 +113,7 @@ class HMM_Full(object):
             e = time()
             print(f"Runtime HMM calc.: {(e-t)} s")
             t = time()
-            self.p_obj.call_roh(r_vec, post)
+            self.p_obj.call_roh(r_vec, bp, post)
             e = time()
             print(f"Runtime Postprocessing: {(e-t)} s")
             return post, r_vec                                                                    
@@ -146,6 +146,6 @@ class HMM_Full(object):
     
     def reset_print(self):
         """Resets output to console."""
-        sys.stdout = sys.__stdout
+        sys.stdout = sys.__stdout__
         if self.output:
             print("Output was reset to standard console.")
