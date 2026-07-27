@@ -117,16 +117,22 @@ class FiveStateTransitions(Transitions):
         rates: 2D Matrix of transitions
         rec_v: Array of length l"""
         eva, evec = np.linalg.eig(rates)  # Do the Eigenvalue Decomposition
-        assert(np.max(eva) <= 1)   # Sanity Check whether rate Matrix
+        assert(np.max(eva.real) <= 1)   # Sanity Check whether rate Matrix
         evec_r = np.linalg.inv(evec)    # Do the Inversion
         # Create vector of the exponentiated diagonals
         d = np.exp(rec_v[:, None] * eva)
         # Use some Einstein Sum Convention Fun (C Speed):
         res = np.einsum('...ik, ...k, ...kj ->...ij', evec, d, evec_r)
+        ### These generators only ever have real eigenvalues, but numpy>=2
+        ### returns complex dtype from eig regardless. Drop the (zero)
+        ### imaginary part so downstream C code gets the doubles it expects.
+        assert(np.max(np.abs(res.imag)) < 1e-10)
+        res = np.ascontiguousarray(res.real)
         # Make sure that all transition rates are valuable
+        res[res<0] = 0.0 # numerical issues cause some entries to be very very small negative values, so we just set them to 0
         assert(0 <= np.min(res))
         return res
-    
+
     def rmap_to_gaps(self, r_map=[], cm=False):
         """Return the recombination map gaps [in Morgan]
         Input: Map Positions [l] (units see cm parameter below)
@@ -211,21 +217,6 @@ class SevenStateTransitions(FiveStateTransitions):
     #ibd_switch = 20  # the rate of jumping between IBD1 and IBD2 state, actually let's leave it the same as ibd_out for now
     
 
-    def exponentiate_r(self, rates, rec_v):
-        """Calculates exponentiation of the rates matrix with rec_v
-        rates: 2D Matrix of transitions
-        rec_v: Array of length l"""
-        eva, evec = np.linalg.eig(rates)  # Do the Eigenvalue Decomposition
-        assert(np.max(eva) <= 1)   # Sanity Check whether rate Matrix
-        evec_r = np.linalg.inv(evec)    # Do the Inversion
-        # Create vector of the exponentiated diagonals
-        d = np.exp(rec_v[:, None] * eva)
-        # Use some Einstein Sum Convention Fun (C Speed):
-        res = np.einsum('...ik, ...k, ...kj ->...ij', evec, d, evec_r)
-        # Make sure that all transition rates are valuable
-        res[res<0] = 0.0 # numerical issues cause some entries to be very very small negative values, so we just set them to 0
-        assert(0 <= np.min(res))
-        return res
 
     def calc_transition_rate(self):
         """Return Transition Rate Matrix [k,k] to exponate.

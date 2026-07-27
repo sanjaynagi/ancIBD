@@ -86,40 +86,22 @@ def prep_param_list_chrom(folder_in, iids = [], ch=3,
 #################################################################################
 #################################################################################
 
-def hapBLOCK_chroms(folder_in="./data/hdf5/1240k_v43/ch", iids = [], run_iids=[],
-                   ch=2, folder_out="", output=False, prefix_out="", logfile=False,
-                   l_model="h5", e_model="haploid_gl2", h_model="FiveStateScaled", 
-                   t_model="standard", p_model="hapROH", p_col="variants/AF_ALL", 
-                   ibd_in=1, ibd_out=10, ibd_jump=400, ibd_jump2=0.5, min_cm=2,
-                   cutoff_post=0.99, max_gap=0.0075, 
-                   IBD2=False, cutoff_post2=0.975, min_cm2_init=1.0, min_cm2_after_merge=2.0,
-                   mask=""):
-    """Run IBD for list of Individuals, and saves their IBD csv into a single 
-    output folder.
-    folder_in: hdf5 path up to chromosome.
-    iids: List of IIDs to load [k indivdiuals]
-    run_iids: If given: list of IID pairs to run. If not run all pairs
-    folder_out: Where to save the hapBLOCK output to
-    min_cm: Minimal block length to call and save [cM]
-    savepath: Where to save the IBD plot to.
-    Return df_ibd, posterior, map, tot_ll"""
-    ### Run all pairs if empty
-    iids = np.array(iids) # Numpy Array for better indexing properties
-    u_iids = set(iids) # Get unique IIDs to run
-    if not len(u_iids)==len(iids): # Check whether duplicates
-        warnings.warn("Duplicate IIDs detected!", RuntimeWarning)
-        print(f"Reducing to {len(u_iids)}/{len(iids)} unique IID")
-        iids = np.array(list(u_iids)) # Keep only the unique Values
-        
-    if len(run_iids)==0:  # By default run all combinations
-        run_iids = it.combinations(iids, 2)
-        
-    ### Load all objects
+def prep_chrom(folder_in="./data/hdf5/1240k_v43/ch", iids=[], ch=2, output=False,
+               l_model="h5", e_model="haploid_gl2", h_model="FiveStateScaled",
+               t_model="standard", p_model="hapROH", p_col="variants/AF_ALL",
+               ibd_in=1, ibd_out=10, ibd_jump=400, ibd_jump2=0.5, min_cm=2,
+               cutoff_post=0.99, max_gap=0.0075,
+               IBD2=False, cutoff_post2=0.975, min_cm2_init=1.0,
+               min_cm2_after_merge=2.0, mask=""):
+    """Build the HMM and load everything shared by all pairs on a chromosome.
+    Returns (h, htsl, p, r_vec, bp, samples, t_mat). Split out from
+    hapBLOCK_chroms so that a worker process can rebuild this state itself
+    instead of having it pickled across the process boundary."""
     if IBD2:
         t_model = 'IBD2'
         e_model = 'IBD2'
         p_model = 'IBD2'
-    h = HMM_Full(folder_in=folder_in, l_model=l_model, t_model=t_model, 
+    h = HMM_Full(folder_in=folder_in, l_model=l_model, t_model=t_model,
                      e_model=e_model, h_model = h_model, p_model=p_model,
                      output=output, load=True)
     if t_model == 'asymmetric':
@@ -128,38 +110,115 @@ def hapBLOCK_chroms(folder_in="./data/hdf5/1240k_v43/ch", iids = [], run_iids=[]
         h.t_obj.set_params(ibd_in = ibd_in, ibd_out = ibd_out, ibd_jump = ibd_jump)
     h.l_obj.set_params(iids=iids, ch=ch, p_col=p_col)
     if IBD2:
-        h.p_obj.set_params(ch=ch, min_cm=min_cm, cutoff_post=cutoff_post, max_gap=max_gap, 
-                           cutoff_post2=cutoff_post2, min_cm2_init=min_cm2_init, 
+        h.p_obj.set_params(ch=ch, min_cm=min_cm, cutoff_post=cutoff_post, max_gap=max_gap,
+                           cutoff_post2=cutoff_post2, min_cm2_init=min_cm2_init,
                            min_cm2_after_merge=min_cm2_after_merge, mask=mask)
     else:
-        h.p_obj.set_params(ch=ch, min_cm=min_cm, cutoff_post=cutoff_post, 
+        h.p_obj.set_params(ch=ch, min_cm=min_cm, cutoff_post=cutoff_post,
                            max_gap=max_gap, mask=mask)
-    
-    
+
     ### Load all data
     h.l_obj.set_params(filtering=False) # To not batch filter data
     htsl, p, r_vec, bp, samples =  h.l_obj.load_all_data()
-    
+
     ### Load transition matrix
     t_mat = h.t_obj.full_transition_matrix(r_vec, n=4, submat33 = h.submat33)
-    
-    ### loop over all Run Pair Individuals
+    return h, htsl, p, r_vec, bp, samples, t_mat
+
+
+def call_pairs(state, run_iids):
+    """Run the HMM for each pair in run_iids. Returns a list of IBD dataframes,
+    in the order the pairs were given.
+    state: the tuple returned by prep_chrom"""
+    h, htsl, p, r_vec, bp, samples, t_mat = state
     df_ibds = []
     for iid1,iid2 in run_iids:
         i1 = get_sample_index(samples, iid1)
-        i2 = get_sample_index(samples, iid2) 
+        i2 = get_sample_index(samples, iid2)
         idcs = [i1*2, i1*2+1, i2*2, i2*2+1] # Get the right indices
         hts2 = htsl[idcs,:] # Subset to haplotyps of iids
         idx = ~(np.isnan(hts2).any(axis=0)) # Indices of markers wiht data
 
         e_mat =  h.e_obj.give_emission_matrix(hts2[:,idx], p[idx])
-        post =  h.fwd_bwd(e_mat, t_mat[idx,:,:], in_val =  h.in_val, 
+        post =  h.fwd_bwd(e_mat, t_mat[idx,:,:], in_val =  h.in_val,
                             full=False, output= h.output)
         df_ibd, _, _ = h.p_obj.call_roh(r_vec[idx], bp[idx], post, iid1, iid2)
         df_ibds.append(df_ibd)
-    
+    return df_ibds
+
+
+### Per-worker chromosome state, set up once by _init_worker and reused for
+### every chunk that worker handles.
+_worker_state = None
+
+def _init_worker(kwargs):
+    global _worker_state
+    _worker_state = prep_chrom(**kwargs)
+
+def _call_pairs_worker(run_iids):
+    return call_pairs(_worker_state, run_iids)
+
+
+def hapBLOCK_chroms(folder_in="./data/hdf5/1240k_v43/ch", iids = [], run_iids=[],
+                   ch=2, folder_out="", output=False, prefix_out="", logfile=False,
+                   l_model="h5", e_model="haploid_gl2", h_model="FiveStateScaled",
+                   t_model="standard", p_model="hapROH", p_col="variants/AF_ALL",
+                   ibd_in=1, ibd_out=10, ibd_jump=400, ibd_jump2=0.5, min_cm=2,
+                   cutoff_post=0.99, max_gap=0.0075,
+                   IBD2=False, cutoff_post2=0.975, min_cm2_init=1.0, min_cm2_after_merge=2.0,
+                   mask="", processes=1):
+    """Run IBD for list of Individuals, and saves their IBD csv into a single
+    output folder.
+    folder_in: hdf5 path up to chromosome.
+    iids: List of IIDs to load [k indivdiuals]
+    run_iids: If given: list of IID pairs to run. If not run all pairs
+    folder_out: Where to save the hapBLOCK output to
+    min_cm: Minimal block length to call and save [cM]
+    savepath: Where to save the IBD plot to.
+    processes: Number of worker processes to split the pairs over. Pairs are
+        independent, so this scales close to linearly. Output is identical to
+        running with processes=1.
+    Return df_ibd, posterior, map, tot_ll"""
+    ### Run all pairs if empty
+    iids = np.array(iids) # Numpy Array for better indexing properties
+    u_iids = set(iids) # Get unique IIDs to run
+    if not len(u_iids)==len(iids): # Check whether duplicates
+        warnings.warn("Duplicate IIDs detected!", RuntimeWarning)
+        print(f"Reducing to {len(u_iids)}/{len(iids)} unique IID")
+        iids = np.array(list(u_iids)) # Keep only the unique Values
+
+    ### Materialize first: needed to count and to split into chunks, and lets
+    ### run_iids be any iterable of pairs rather than only a sized one.
+    run_iids = list(run_iids)
+    if len(run_iids)==0:  # By default run all combinations
+        run_iids = list(it.combinations(iids, 2))
+
+    prep_kwargs = dict(folder_in=folder_in, iids=iids, ch=ch, output=output,
+                       l_model=l_model, e_model=e_model, h_model=h_model,
+                       t_model=t_model, p_model=p_model, p_col=p_col,
+                       ibd_in=ibd_in, ibd_out=ibd_out, ibd_jump=ibd_jump,
+                       ibd_jump2=ibd_jump2, min_cm=min_cm, cutoff_post=cutoff_post,
+                       max_gap=max_gap, IBD2=IBD2, cutoff_post2=cutoff_post2,
+                       min_cm2_init=min_cm2_init,
+                       min_cm2_after_merge=min_cm2_after_merge, mask=mask)
+
+    state = prep_chrom(**prep_kwargs)
+    h = state[0]
+
+    n_proc = min(max(int(processes), 1), len(run_iids))
+    if n_proc <= 1:
+        df_ibds = call_pairs(state, run_iids)
+    else:
+        ### Contiguous chunks, recombined in order, so the concatenated result
+        ### is the same as the serial one. Each worker loads the chromosome
+        ### itself - cheap next to the HMM, and avoids shipping the arrays.
+        bounds = np.linspace(0, len(run_iids), n_proc + 1).astype(int)
+        chunks = [run_iids[a:b] for a, b in zip(bounds[:-1], bounds[1:]) if b > a]
+        with mp.Pool(n_proc, initializer=_init_worker, initargs=(prep_kwargs,)) as pool:
+            df_ibds = [df for chunk in pool.map(_call_pairs_worker, chunks) for df in chunk]
+
     df_ibds = pd.concat(df_ibds)
-    
+
     if len(folder_out)>0:
         folder_out = h.prepare_path(folder_out, ch=ch, prefix_out=prefix_out, logfile=logfile)
         save_path = os.path.join(folder_out, f"ch{ch}.tsv")

@@ -34,6 +34,7 @@ def main():
     parser.add_argument('--min_cm2_init', action='store', dest='min_cm2_init', type=float, required=False, default=0.25, help='minimum length of IBD2 segment in cM before merging. Default is 1.0.')
     parser.add_argument('--min_cm2_after_merge', action='store', dest='min_cm2_after_merge', type=float, required=False, default=4.0, help='minimum length of IBD2 segment in cM after merging. Default is 2.0.')
     parser.add_argument('--mask', action='store', dest='mask', type=str, required=False, default="", help='Mask file to mask out regions for IBD calling.')
+    parser.add_argument('-p', '--processes', action='store', dest='processes', type=int, required=False, default=1, help='Number of processes to split the sample pairs over. Results are identical regardless of this setting. Default is 1.')
     parser.add_argument('-v', '--verbose', action='store_true', dest='verbose', required=False, help='turn on verbose mode')
     args = parser.parse_args()
 
@@ -109,6 +110,6 @@ def main():
                              ibd_in=args.ibd_in, ibd_out=args.ibd_out, ibd_jump=400,
                              min_cm=args.min, cutoff_post=0.99, max_gap=0.0075, 
                              IBD2=args.IBD2, cutoff_post2=args.post2, min_cm2_init=args.min_cm2_init, min_cm2_after_merge=args.min_cm2_after_merge,
-                             mask=args.mask)    
+                             mask=args.mask, processes=args.processes)    
     df_ibd.to_csv(os.path.join(f"{oDir}", f"{prefix}.tsv"), sep='\t', index=False)
     
