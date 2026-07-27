@@ -55,15 +55,21 @@ class PostProcessing(object):
         ends = np.where(d == -1)[0]
         return starts, ends
     
-    def create_df(self, starts, ends, starts_map, ends_map, 
+    def create_df(self, starts, ends, starts_map, ends_map,
               l, l_map, ch, starts_bp, ends_bp, min_cm, iid1, iid2=""):
         """Create and returndthe hapBLOCK/hapROH dataframe."""
+        ### Drop the short blocks while still in numpy. Only a small fraction of
+        ### the raw blocks survive the length cutoff, and building a row per
+        ### raw block just to discard it dominates the cost of calling a pair.
+        keep = l_map > min_cm/100.0
+        starts, ends, l = starts[keep], ends[keep], l[keep]
+        starts_map, ends_map, l_map = starts_map[keep], ends_map[keep], l_map[keep]
+        starts_bp, ends_bp = starts_bp[keep], ends_bp[keep]
 
-        full_df = pd.DataFrame({'Start': starts, 'End': ends,
+        df = pd.DataFrame({'Start': starts, 'End': ends,
                                 'StartM': starts_map, 'EndM': ends_map, 'length': l,
                                 'lengthM': l_map, "ch": ch, 'StartBP': starts_bp, 'EndBP':ends_bp, \
                                 'iid1': iid1, "iid2": iid2})
-        df = full_df[full_df["lengthM"] > min_cm/100.0]  # Cut out long blocks
         return df
     
     def merge_called_blocks(self, df, max_gap=0):
