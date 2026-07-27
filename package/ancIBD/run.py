@@ -148,12 +148,15 @@ def call_pairs(state, run_iids):
 
 
 ### Per-worker chromosome state, set up once by _init_worker and reused for
-### every chunk that worker handles.
+### every chunk that worker handles. Under the "fork" start method the parent
+### sets this before forking and the children inherit it, so the genotype
+### arrays are shared copy-on-write rather than loaded once per worker.
 _worker_state = None
 
 def _init_worker(kwargs):
     global _worker_state
-    _worker_state = prep_chrom(**kwargs)
+    if _worker_state is None: # Not inherited from the parent, so load our own
+        _worker_state = prep_chrom(**kwargs)
 
 def _call_pairs_worker(run_iids):
     return call_pairs(_worker_state, run_iids)
@@ -176,8 +179,11 @@ def hapBLOCK_chroms(folder_in="./data/hdf5/1240k_v43/ch", iids = [], run_iids=[]
     min_cm: Minimal block length to call and save [cM]
     savepath: Where to save the IBD plot to.
     processes: Number of worker processes to split the pairs over. Pairs are
-        independent, so this scales close to linearly. Output is identical to
-        running with processes=1.
+        independent. Output is identical to running with processes=1.
+        On platforms whose default start method is "spawn" (macOS, Windows) a
+        script that calls this with processes>1 must guard its entry point with
+        `if __name__ == "__main__":`, or each worker re-executes the script.
+        The ancIBD-run CLI is unaffected.
     Return df_ibd, posterior, map, tot_ll"""
     ### Run all pairs if empty
     iids = np.array(iids) # Numpy Array for better indexing properties
@@ -202,6 +208,7 @@ def hapBLOCK_chroms(folder_in="./data/hdf5/1240k_v43/ch", iids = [], run_iids=[]
                        min_cm2_init=min_cm2_init,
                        min_cm2_after_merge=min_cm2_after_merge, mask=mask)
 
+    global _worker_state
     state = prep_chrom(**prep_kwargs)
     h = state[0]
 
@@ -209,13 +216,23 @@ def hapBLOCK_chroms(folder_in="./data/hdf5/1240k_v43/ch", iids = [], run_iids=[]
     if n_proc <= 1:
         df_ibds = call_pairs(state, run_iids)
     else:
+        ### Under "fork" the children inherit our state and share the genotype
+        ### arrays copy-on-write. Under "spawn" they cannot, so they each load
+        ### their own and we drop ours rather than hold a redundant copy.
+        share = mp.get_start_method() == "fork"
+        _worker_state = state if share else None
+        if not share:
+            state = None
+
         ### Contiguous chunks, recombined in order, so the concatenated result
-        ### is the same as the serial one. Each worker loads the chromosome
-        ### itself - cheap next to the HMM, and avoids shipping the arrays.
+        ### is the same as the serial one.
         bounds = np.linspace(0, len(run_iids), n_proc + 1).astype(int)
         chunks = [run_iids[a:b] for a, b in zip(bounds[:-1], bounds[1:]) if b > a]
-        with mp.Pool(n_proc, initializer=_init_worker, initargs=(prep_kwargs,)) as pool:
-            df_ibds = [df for chunk in pool.map(_call_pairs_worker, chunks) for df in chunk]
+        try:
+            with mp.Pool(n_proc, initializer=_init_worker, initargs=(prep_kwargs,)) as pool:
+                df_ibds = [df for chunk in pool.map(_call_pairs_worker, chunks) for df in chunk]
+        finally:
+            _worker_state = None
 
     df_ibds = pd.concat(df_ibds)
 
